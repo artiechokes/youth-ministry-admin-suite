@@ -25,7 +25,7 @@ type TeenFormData = {
   registrationDataJson: string;
 };
 
-type Props = { teen: TeenFormData };
+type Props = { teen: TeenFormData; canEdit: boolean };
 
 const statusOptions = [
   { value: 'PENDING_PARENT_VERIFICATION', label: 'Pending parent verification' },
@@ -34,7 +34,7 @@ const statusOptions = [
 ];
 
 // Client form posts updates to the admin API route.
-export function TeenDetailForm({ teen }: Props) {
+export function TeenDetailForm({ teen, canEdit }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -159,9 +159,11 @@ export function TeenDetailForm({ teen }: Props) {
             <h2>Student Overview</h2>
             <p className="muted">Record status: {formValues.registrationStatus.replace(/_/g, ' ').toLowerCase()}</p>
           </div>
-          <button type="button" onClick={() => setIsEditing(true)}>
-            Edit
-          </button>
+          {canEdit && (
+            <button type="button" onClick={() => setIsEditing(true)}>
+              Edit
+            </button>
+          )}
         </div>
         <div className="grid two">
           <div className="card">
@@ -225,6 +227,10 @@ export function TeenDetailForm({ teen }: Props) {
         </div>
       </section>
     );
+  }
+
+  if (!canEdit) {
+    return null;
   }
 
   return (

@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { autoArchiveAdults } from '@/lib/teen';
 import { KioskClient } from './kiosk-client';
 
 // Kiosk page for touch-friendly attendance check-in/out.
 export default async function KioskPage() {
-  await requireAdmin();
+  await requirePermission('kiosk_edit');
   await autoArchiveAdults(prisma);
 
   const teens = await prisma.teen.findMany({
@@ -24,5 +24,11 @@ export default async function KioskPage() {
     }
   });
 
-  return <KioskClient teens={teens} attendance={attendance} />;
+  return (
+    <div className="grid" style={{ gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      </div>
+      <KioskClient teens={teens} attendance={attendance} />
+    </div>
+  );
 }

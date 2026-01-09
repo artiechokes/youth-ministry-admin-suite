@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
+import { hasPermission, normalizePermissions } from '@/lib/permissions';
 import { RegistrationStatus, Prisma } from '@prisma/client';
 import { ArchiveActions } from './ArchiveActions';
 import { autoArchiveAdults } from '@/lib/teen';
@@ -18,7 +19,7 @@ const statusOptions = [
 
 // Server-rendered roster so staff can filter without client-side state.
 export default async function AdminRoster({ searchParams }: Props) {
-  await requireAdmin();
+  const session = await requirePermission('roster_view');
   await autoArchiveAdults(prisma);
 
   const resolvedParams = await Promise.resolve(searchParams);
@@ -49,6 +50,20 @@ export default async function AdminRoster({ searchParams }: Props) {
     where,
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
   });
+
+  const permissions =
+    session.role === 'ADMIN'
+      ? null
+      : normalizePermissions(
+          (
+            await prisma.user.findUnique({
+              where: { id: session.id },
+              select: { permissionsJson: true }
+            })
+          )?.permissionsJson
+        );
+
+  const canManage = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_manage') : false);
 
   return (
     <div className="card">
@@ -103,7 +118,9 @@ export default async function AdminRoster({ searchParams }: Props) {
               <td>{new Date(teen.updatedAt).toLocaleDateString()}</td>
               <td>{teen.archivedAt ? <span className="badge-archived">Archived</span> : null}</td>
               <td>
-                <ArchiveActions teenId={teen.id} teenName={`${teen.firstName} ${teen.lastName}`} archived={false} />
+                {canManage && (
+                  <ArchiveActions teenId={teen.id} teenName={`${teen.firstName} ${teen.lastName}`} archived={false} />
+                )}
               </td>
               <td>
                 <Link className="secondary" href={`/admin/roster/${teen.id}`}>

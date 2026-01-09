@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RegistrationStatus, Role } from '@prisma/client';
+import { RegistrationStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { getSessionUser } from '@/lib/auth';
-
-const allowedRoles = new Set([Role.ADMIN, Role.STAFF]);
-
-async function requireStaff() {
-  const user = await getSessionUser();
-  if (!user?.role || !allowedRoles.has(user.role as Role)) {
-    return null;
-  }
-  return user;
-}
+import { requireStaffPermission } from '@/lib/permissions-guard';
 
 const toOptional = (value: unknown) => {
   if (typeof value !== 'string') return null;
@@ -20,7 +10,7 @@ const toOptional = (value: unknown) => {
 };
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('roster_view');
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -34,7 +24,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('roster_edit');
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -133,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('roster_manage');
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

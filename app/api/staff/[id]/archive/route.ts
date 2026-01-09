@@ -3,21 +3,29 @@ import { prisma } from '@/lib/db';
 import { requireStaffPermission } from '@/lib/permissions-guard';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireStaffPermission('roster_manage');
+  const user = await requireStaffPermission('staff_manage');
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const resolvedParams = await Promise.resolve(params);
-  const teenId = resolvedParams?.id;
-  if (!teenId) return NextResponse.json({ error: 'Missing teen id' }, { status: 400 });
+  const staffId = resolvedParams?.id;
+  if (!staffId) return NextResponse.json({ error: 'Missing staff id' }, { status: 400 });
+
+  if (staffId === user.id) {
+    return NextResponse.json({ error: 'Cannot archive your own account' }, { status: 400 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === 'string' && body.reason.trim().length ? body.reason.trim() : 'Manual archive';
 
-  const existing = await prisma.teen.findUnique({ where: { id: teenId } });
+  const existing = await prisma.user.findUnique({ where: { id: staffId } });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const updated = await prisma.teen.update({
-    where: { id: teenId },
+  if (existing.role === 'ADMIN') {
+    return NextResponse.json({ error: 'Cannot archive admin accounts' }, { status: 400 });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: staffId },
     data: { archivedAt: new Date(), archivedReason: reason }
   });
 
@@ -25,8 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     data: {
       userId: user.id,
       action: 'ARCHIVE',
-      entityType: 'Teen',
-      entityId: teenId,
+      entityType: 'Staff',
+      entityId: staffId,
       beforeJson: { archivedAt: existing.archivedAt, archivedReason: existing.archivedReason },
       afterJson: { archivedAt: updated.archivedAt, archivedReason: updated.archivedReason }
     }
@@ -36,18 +44,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireStaffPermission('roster_manage');
+  const user = await requireStaffPermission('staff_manage');
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const resolvedParams = await Promise.resolve(params);
-  const teenId = resolvedParams?.id;
-  if (!teenId) return NextResponse.json({ error: 'Missing teen id' }, { status: 400 });
+  const staffId = resolvedParams?.id;
+  if (!staffId) return NextResponse.json({ error: 'Missing staff id' }, { status: 400 });
 
-  const existing = await prisma.teen.findUnique({ where: { id: teenId } });
+  const existing = await prisma.user.findUnique({ where: { id: staffId } });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const updated = await prisma.teen.update({
-    where: { id: teenId },
+  if (existing.role === 'ADMIN') {
+    return NextResponse.json({ error: 'Cannot restore admin accounts' }, { status: 400 });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: staffId },
     data: { archivedAt: null, archivedReason: null }
   });
 
@@ -55,8 +67,8 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
     data: {
       userId: user.id,
       action: 'RESTORE',
-      entityType: 'Teen',
-      entityId: teenId,
+      entityType: 'Staff',
+      entityId: staffId,
       beforeJson: { archivedAt: existing.archivedAt, archivedReason: existing.archivedReason },
       afterJson: { archivedAt: updated.archivedAt, archivedReason: updated.archivedReason }
     }

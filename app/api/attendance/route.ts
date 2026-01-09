@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getSessionUser } from '@/lib/auth';
-import { Role } from '@prisma/client';
-
-const allowedRoles = new Set([Role.ADMIN, Role.STAFF]);
-
-async function requireStaff() {
-  const user = await getSessionUser();
-  if (!user?.role || !allowedRoles.has(user.role as Role)) {
-    return null;
-  }
-  return user;
-}
+import { requireStaffPermission } from '@/lib/permissions-guard';
 
 function getTodayRange() {
   const start = new Date();
@@ -23,7 +12,7 @@ function getTodayRange() {
 
 // GET returns today's attendance records grouped by teen.
 export async function GET() {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('kiosk_view');
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { start, end } = getTodayRange();
@@ -40,7 +29,7 @@ export async function GET() {
 
 // POST handles check-in or check-out for selected teens.
 export async function POST(req: NextRequest) {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('kiosk_edit');
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
