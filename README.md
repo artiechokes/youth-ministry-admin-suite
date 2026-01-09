@@ -1,4 +1,4 @@
-# Sacred Heart Youth Group
+# Youth Ministry Admin Suite
 
 This is a fresh Next.js (App Router) app with Prisma + NextAuth. The first focus is the teen registration flow and an admin roster.
 
