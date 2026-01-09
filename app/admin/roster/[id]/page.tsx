@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/auth';
 import { hasPermission, normalizePermissions } from '@/lib/permissions';
 import { TeenDetailForm } from './teen-detail';
+import { TeenFormsPanel } from './forms-panel';
 import { ArchiveActions } from '../ArchiveActions';
 import { autoArchiveAdults } from '@/lib/teen';
 
@@ -92,6 +93,8 @@ export default async function TeenDetailPage({ params }: { params: { id: string 
 
   const canEdit = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_edit') : false);
   const canManage = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_manage') : false);
+  const canViewForms = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'forms_view') : false);
+  const canEditForms = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'forms_edit') : false);
 
   return (
     <div className="card">
@@ -114,6 +117,7 @@ export default async function TeenDetailPage({ params }: { params: { id: string 
         </div>
       </div>
       <TeenDetailForm teen={teenFormData} canEdit={canEdit} />
+      <TeenFormsPanel teenId={teen.id} canView={canViewForms} canEdit={canEditForms} />
       <section className="card" style={{ marginTop: 16 }}>
         <h2>Attendance History</h2>
         <table style={{ marginTop: 12 }}>

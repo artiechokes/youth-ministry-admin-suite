@@ -280,6 +280,8 @@ export function TeenDetailForm({ teen, canEdit }: Props) {
           <input
             name="teenPhone"
             type="tel"
+            inputMode="numeric"
+            placeholder="(555)123-4567"
             value={formValues.teenPhone}
             onChange={(event) => handleChange('teenPhone', event.target.value)}
           />
@@ -343,6 +345,8 @@ export function TeenDetailForm({ teen, canEdit }: Props) {
           <input
             name="emergencyContactPhone"
             type="tel"
+            inputMode="numeric"
+            placeholder="(555)123-4567"
             value={formValues.emergencyContactPhone}
             onChange={(event) => handleChange('emergencyContactPhone', event.target.value)}
           />
@@ -381,6 +385,8 @@ export function TeenDetailForm({ teen, canEdit }: Props) {
           <input
             name="parentPhone"
             type="tel"
+            inputMode="numeric"
+            placeholder="(555)123-4567"
             value={formValues.parentPhone}
             onChange={(event) => handleChange('parentPhone', event.target.value)}
           />

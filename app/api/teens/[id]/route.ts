@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RegistrationStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { formatUsPhone, isValidEmail } from '@/lib/formatters';
 import { requireStaffPermission } from '@/lib/permissions-guard';
 
 const toOptional = (value: unknown) => {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const toPhoneOptional = (value: unknown, label: string) => {
+  const trimmed = toOptional(value);
+  if (!trimmed) return null;
+  const formatted = formatUsPhone(trimmed);
+  if (!formatted) {
+    throw new Error(`${label} must be a 10-digit phone number.`);
+  }
+  return formatted;
 };
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
@@ -58,12 +69,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     ? (body.registrationStatus as RegistrationStatus)
     : existing.registrationStatus;
 
+  const emailToCheck = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+  const nextTeenEmail = emailToCheck(body.teenEmail);
+  const nextParentEmail = emailToCheck(body.parentEmail);
+  if (nextTeenEmail && !isValidEmail(nextTeenEmail)) {
+    return NextResponse.json({ error: 'Teen email is invalid.' }, { status: 400 });
+  }
+  if (nextParentEmail && !isValidEmail(nextParentEmail)) {
+    return NextResponse.json({ error: 'Parent email is invalid.' }, { status: 400 });
+  }
+
+  let teenPhone: string | null = null;
+  let emergencyContactPhone: string | null = null;
+  let parentPhone: string | null = null;
+
+  try {
+    teenPhone = toPhoneOptional(body.teenPhone, 'Teen phone');
+    emergencyContactPhone = toPhoneOptional(body.emergencyContactPhone, 'Emergency contact phone');
+    parentPhone = toPhoneOptional(body.parentPhone, 'Parent phone');
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message ?? 'Invalid phone number.' }, { status: 400 });
+  }
+
   const data = {
     firstName,
     lastName,
     dob,
     email: toOptional(body.teenEmail),
-    phone: toOptional(body.teenPhone),
+    phone: teenPhone,
     addressLine1: toOptional(body.addressLine1),
     addressLine2: toOptional(body.addressLine2),
     city: toOptional(body.city),
@@ -71,10 +104,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     postalCode: toOptional(body.postalCode),
     parish: toOptional(body.parish),
     emergencyContactName: toOptional(body.emergencyContactName),
-    emergencyContactPhone: toOptional(body.emergencyContactPhone),
+    emergencyContactPhone,
     parentName: toOptional(body.parentName),
     parentEmail: toOptional(body.parentEmail),
-    parentPhone: toOptional(body.parentPhone),
+    parentPhone,
     parentRelationship: toOptional(body.parentRelationship),
     registrationStatus: status,
     registrationDataJson: body.registrationDataJson ?? null

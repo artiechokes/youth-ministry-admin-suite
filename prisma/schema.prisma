@@ -20,6 +20,38 @@ enum RegistrationStatus {
   COMPLETE
 }
 
+enum FormStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum FormFieldType {
+  SECTION
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  DATE
+  EMAIL
+  PHONE
+  CHECKBOX
+  SELECT
+  MULTI_SELECT
+  SIGNATURE
+}
+
+enum FormValidityUnit {
+  DAYS
+  MONTHS
+  YEARS
+}
+
+enum FormCategory {
+  GENERAL
+  RELEASE
+  EVENT
+  MEDICAL
+}
+
 model User {
   id           String    @id @default(cuid())
   role         Role      @default(ADMIN)
@@ -40,10 +72,14 @@ model User {
   auditLogs    AuditLog[]
   sessions     Session[]
   accounts     Account[]
+  formsCreated Form[] @relation("FormCreator")
+  formAssignments FormAssignment[] @relation("FormAssigner")
+  formSubmissions FormSubmission[] @relation("FormSubmitter")
 }
 
 model Teen {
   id                       String             @id @default(cuid())
+  publicId                 String?            @unique
   firstName                String
   lastName                 String
   dob                      DateTime
@@ -69,6 +105,8 @@ model Teen {
   createdAt                DateTime           @default(now())
   updatedAt                DateTime           @updatedAt
   attendanceRecords        AttendanceRecord[]
+  formAssignments          FormAssignment[]
+  formSubmissions          FormSubmission[]
 }
 
 model AttendanceRecord {
@@ -81,6 +119,81 @@ model AttendanceRecord {
   updatedAt  DateTime @updatedAt
 
   @@index([teenId, checkInAt])
+}
+
+model Form {
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  status       FormStatus  @default(ACTIVE)
+  category     FormCategory @default(GENERAL)
+  validForValue Int?
+  validForUnit FormValidityUnit?
+  validUntil   DateTime?
+  createdById  String?
+  createdBy    User?       @relation("FormCreator", fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  fields       FormField[]
+  assignments  FormAssignment[]
+  submissions  FormSubmission[]
+}
+
+model FormField {
+  id         String         @id @default(cuid())
+  formId     String
+  form       Form           @relation(fields: [formId], references: [id])
+  type       FormFieldType
+  label      String
+  helpText   String?
+  required   Boolean        @default(false)
+  optionsJson Json?
+  order      Int            @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([formId, order])
+}
+
+model FormAssignment {
+  id           String       @id @default(cuid())
+  formId       String
+  form         Form         @relation(fields: [formId], references: [id])
+  teenId       String
+  teen         Teen         @relation(fields: [teenId], references: [id])
+  assignedById String?
+  assignedBy   User?        @relation("FormAssigner", fields: [assignedById], references: [id])
+  dueAt        DateTime?
+  required     Boolean      @default(true)
+  archivedAt   DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  submissions  FormSubmission[]
+
+  @@index([teenId, formId])
+  @@index([archivedAt])
+}
+
+model FormSubmission {
+  id           String       @id @default(cuid())
+  formId       String
+  form         Form         @relation(fields: [formId], references: [id])
+  teenId       String
+  teen         Teen         @relation(fields: [teenId], references: [id])
+  assignmentId String?
+  assignment   FormAssignment? @relation(fields: [assignmentId], references: [id])
+  submittedById String?
+  submittedBy  User?        @relation("FormSubmitter", fields: [submittedById], references: [id])
+  dataJson     Json
+  parentSignatureJson Json?
+  submittedAt  DateTime     @default(now())
+  expiresAt    DateTime?
+  updatedAt    DateTime     @updatedAt
+
+  @@index([teenId, formId])
+  @@index([assignmentId])
 }
 
 model AuditLog {

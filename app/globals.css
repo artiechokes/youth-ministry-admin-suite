@@ -163,6 +163,13 @@ textarea {
   font-size: 0.95rem;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  border-radius: 4px;
+}
+
 button {
   background: var(--accent);
   color: #fff;

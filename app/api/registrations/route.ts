@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { generatePublicId } from '@/lib/public-id';
+import { formatUsPhone, isValidEmail } from '@/lib/formatters';
 
 // Teen-initiated registration creates a pending record we can expand later.
 export async function POST(req: NextRequest) {
@@ -34,6 +36,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  if (!isValidEmail(teenEmail) || !isValidEmail(parentEmail)) {
+    return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 });
+  }
+
   const dob = new Date(dobValue);
   if (Number.isNaN(dob.getTime())) {
     return NextResponse.json({ error: 'Invalid date of birth' }, { status: 400 });
@@ -45,28 +51,78 @@ export async function POST(req: NextRequest) {
     return trimmed.length ? trimmed : undefined;
   };
 
-  const teen = await prisma.teen.create({
-    data: {
-      firstName,
-      lastName,
-      dob,
-      email: teenEmail,
-      phone: toOptional(body.teenPhone),
-      addressLine1,
-      addressLine2: toOptional(body.addressLine2),
-      city,
-      state,
-      postalCode,
-      parish: toOptional(body.parish),
-      emergencyContactName: toOptional(body.emergencyContactName),
-      emergencyContactPhone: toOptional(body.emergencyContactPhone),
-      parentName,
-      parentEmail,
-      parentPhone,
-      parentRelationship,
-      registrationDataJson: body.registrationDataJson ?? undefined
+  const toPhoneOptional = (value: unknown, label: string) => {
+    const trimmed = toOptional(value);
+    if (!trimmed) return undefined;
+    const formatted = formatUsPhone(trimmed);
+    if (!formatted) {
+      throw new Error(`${label} must be a 10-digit phone number.`);
     }
-  });
+    return formatted;
+  };
+
+  const toPhoneRequired = (value: unknown, label: string) => {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    if (!trimmed) {
+      throw new Error(`${label} is required.`);
+    }
+    const formatted = formatUsPhone(trimmed);
+    if (!formatted) {
+      throw new Error(`${label} must be a 10-digit phone number.`);
+    }
+    return formatted;
+  };
+
+  let teenPhone: string | undefined;
+  let emergencyContactPhone: string | undefined;
+  let parentPhoneFormatted: string;
+  try {
+    teenPhone = toPhoneOptional(body.teenPhone, 'Teen phone');
+    emergencyContactPhone = toPhoneOptional(body.emergencyContactPhone, 'Emergency contact phone');
+    parentPhoneFormatted = toPhoneRequired(body.parentPhone, 'Parent phone');
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message ?? 'Invalid phone number.' }, { status: 400 });
+  }
+
+  let teen = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const publicId = generatePublicId('T');
+    try {
+      teen = await prisma.teen.create({
+        data: {
+          publicId,
+          firstName,
+          lastName,
+          dob,
+          email: teenEmail,
+          phone: teenPhone,
+          addressLine1,
+          addressLine2: toOptional(body.addressLine2),
+          city,
+          state,
+          postalCode,
+          parish: toOptional(body.parish),
+          emergencyContactName: toOptional(body.emergencyContactName),
+          emergencyContactPhone,
+          parentName,
+          parentEmail,
+          parentPhone: parentPhoneFormatted,
+          parentRelationship,
+          registrationDataJson: body.registrationDataJson ?? undefined
+        }
+      });
+      break;
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (!teen) {
+    return NextResponse.json({ error: 'Unable to create registration.' }, { status: 500 });
+  }
 
   // TODO: send parent verification email when email provider is configured.
 

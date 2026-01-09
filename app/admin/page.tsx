@@ -43,6 +43,13 @@ export default async function AdminDashboard() {
           </div>
         </article>
         <article className="card">
+          <h2>Forms</h2>
+          <p className="muted">Build release forms, event registrations, and renewals.</p>
+          <Link href="/admin/forms">
+            <button style={{ marginTop: 12 }}>Open Forms</button>
+          </Link>
+        </article>
+        <article className="card">
           <h2>My Profile</h2>
           <p className="muted">Update your contact info and staff bio.</p>
           <Link href="/admin/profile">

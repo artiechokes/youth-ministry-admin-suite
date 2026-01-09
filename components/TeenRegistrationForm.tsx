@@ -95,7 +95,7 @@ export function TeenRegistrationForm({ onSuccess }: Props) {
         </div>
         <div>
           <label>Teen Phone (optional)</label>
-          <input name="teenPhone" type="tel" />
+          <input name="teenPhone" type="tel" inputMode="numeric" placeholder="5551234567" />
         </div>
       </div>
       <div>
@@ -147,7 +147,7 @@ export function TeenRegistrationForm({ onSuccess }: Props) {
         </div>
         <div>
           <label>Parent Phone</label>
-          <input name="parentPhone" type="tel" required />
+          <input name="parentPhone" type="tel" inputMode="numeric" placeholder="5551234567" required />
         </div>
       </div>
       <div className="grid two">
@@ -157,7 +157,7 @@ export function TeenRegistrationForm({ onSuccess }: Props) {
         </div>
         <div>
           <label>Emergency Contact Phone (optional)</label>
-          <input name="emergencyContactPhone" type="tel" />
+          <input name="emergencyContactPhone" type="tel" inputMode="numeric" placeholder="5551234567" />
         </div>
       </div>
       <button type="submit" disabled={status === 'submitting'}>
