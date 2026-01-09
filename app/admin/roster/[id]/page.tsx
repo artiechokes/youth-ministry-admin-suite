@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
+import { hasPermission, normalizePermissions } from '@/lib/permissions';
 import { TeenDetailForm } from './teen-detail';
 import { ArchiveActions } from '../ArchiveActions';
 import { autoArchiveAdults } from '@/lib/teen';
 
 // Server component fetches teen info then renders the editable form.
 export default async function TeenDetailPage({ params }: { params: { id: string } }) {
-  await requireAdmin();
+  const session = await requirePermission('roster_view');
   await autoArchiveAdults(prisma);
 
   const resolvedParams = await Promise.resolve(params);
@@ -77,6 +78,21 @@ export default async function TeenDetailPage({ params }: { params: { id: string 
       : '-'
   }));
 
+  const permissions =
+    session.role === 'ADMIN'
+      ? null
+      : normalizePermissions(
+          (
+            await prisma.user.findUnique({
+              where: { id: session.id },
+              select: { permissionsJson: true }
+            })
+          )?.permissionsJson
+        );
+
+  const canEdit = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_edit') : false);
+  const canManage = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_manage') : false);
+
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -85,13 +101,19 @@ export default async function TeenDetailPage({ params }: { params: { id: string 
           <p className="muted">{teen.parentEmail ?? 'No parent email on file'}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <ArchiveActions teenId={teen.id} teenName={`${teen.firstName} ${teen.lastName}`} archived={Boolean(teen.archivedAt)} />
+          {canManage && (
+            <ArchiveActions
+              teenId={teen.id}
+              teenName={`${teen.firstName} ${teen.lastName}`}
+              archived={Boolean(teen.archivedAt)}
+            />
+          )}
           <Link className="secondary" href="/admin/roster">
             Back to Roster
           </Link>
         </div>
       </div>
-      <TeenDetailForm teen={teenFormData} />
+      <TeenDetailForm teen={teenFormData} canEdit={canEdit} />
       <section className="card" style={{ marginTop: 16 }}>
         <h2>Attendance History</h2>
         <table style={{ marginTop: 12 }}>

@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
+import { hasPermission, normalizePermissions } from '@/lib/permissions';
 import { autoArchiveAdults } from '@/lib/teen';
 import { ArchiveActions } from '../ArchiveActions';
 import { Prisma } from '@prisma/client';
 
 // Archived roster for adults or manually archived teens.
 export default async function ArchivedRoster({ searchParams }: { searchParams?: { search?: string } }) {
-  await requireAdmin();
+  const session = await requirePermission('roster_view');
   await autoArchiveAdults(prisma);
 
   const resolvedParams = await Promise.resolve(searchParams);
@@ -31,6 +32,20 @@ export default async function ArchivedRoster({ searchParams }: { searchParams?: 
     orderBy: [{ archivedAt: 'desc' }, { lastName: 'asc' }]
   });
 
+  const permissions =
+    session.role === 'ADMIN'
+      ? null
+      : normalizePermissions(
+          (
+            await prisma.user.findUnique({
+              where: { id: session.id },
+              select: { permissionsJson: true }
+            })
+          )?.permissionsJson
+        );
+
+  const canManage = session.role === 'ADMIN' || (permissions ? hasPermission(permissions, 'roster_manage') : false);
+
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -38,9 +53,11 @@ export default async function ArchivedRoster({ searchParams }: { searchParams?: 
           <h1>Archived Teens</h1>
           <p className="muted">Adults or manually archived records.</p>
         </div>
-        <Link className="secondary" href="/admin/roster">
-          Back to Roster
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link className="secondary" href="/admin/roster">
+            Back to Roster
+          </Link>
+        </div>
       </div>
       <form method="get" className="grid" style={{ gap: 12, marginTop: 16 }}>
         <div>
@@ -68,7 +85,7 @@ export default async function ArchivedRoster({ searchParams }: { searchParams?: 
               <td>{teen.archivedAt ? new Date(teen.archivedAt).toLocaleDateString() : '-'}</td>
               <td>{teen.archivedReason ?? '-'}</td>
               <td>
-                <ArchiveActions teenId={teen.id} teenName={`${teen.firstName} ${teen.lastName}`} archived />
+                {canManage && <ArchiveActions teenId={teen.id} teenName={`${teen.firstName} ${teen.lastName}`} archived />}
               </td>
               <td>
                 <Link className="secondary" href={`/admin/roster/${teen.id}`}>

@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RegistrationStatus, Role, Prisma } from '@prisma/client';
+import { RegistrationStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { getSessionUser } from '@/lib/auth';
-
-const allowedRoles = new Set([Role.ADMIN, Role.STAFF]);
-
-async function requireStaff() {
-  const user = await getSessionUser();
-  if (!user?.role || !allowedRoles.has(user.role as Role)) {
-    return null;
-  }
-  return user;
-}
+import { requireStaffPermission } from '@/lib/permissions-guard';
 
 // GET /api/teens?search=&status= for admin roster filtering.
 export async function GET(req: NextRequest) {
-  const user = await requireStaff();
+  const user = await requireStaffPermission('roster_view');
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

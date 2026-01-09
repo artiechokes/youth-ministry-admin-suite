@@ -26,6 +26,15 @@ model User {
   email        String?   @unique
   username     String?   @unique
   passwordHash String
+  permissionsJson Json?
+  firstName    String?
+  lastName     String?
+  displayName  String?
+  phone        String?
+  title        String?
+  bio          String?
+  archivedAt   DateTime?
+  archivedReason String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   auditLogs    AuditLog[]
